@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CURSED CLASH</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* ستايل اللعبة (CSS) */
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0614; font-family: "Segoe UI", system-ui, sans-serif; color: #fff; user-select: none; }
+        .screen { position: fixed; inset: 0; }
+        .hidden { display: none !important; }
+        
+        /* القائمة الرئيسية */
+        #main-menu { display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 50; }
+        .menu-bg { position: absolute; inset: 0; background: radial-gradient(circle at 30% 20%, #3b1d5e 0%, transparent 50%), radial-gradient(circle at 70% 80%, #5e1d3b 0%, transparent 50%), radial-gradient(circle at 50% 50%, #120a24 0%, #05030c 100%); }
+        .game-title { font-size: clamp(3rem, 10vw, 6rem); font-weight: 900; letter-spacing: 0.08em; z-index: 1; text-shadow: 0 0 30px #a855f7, 0 0 60px #7c3aed; font-style: italic; }
+        .game-title span { color: #f43f5e; text-shadow: 0 0 30px #f43f5e, 0 0 60px #be123c; }
+        .subtitle { z-index: 1; opacity: 0.7; margin: 0.5rem 0 3rem; letter-spacing: 0.3em; font-size: 0.8rem; }
+        .menu-buttons { display: flex; flex-direction: column; gap: 1.2rem; z-index: 1; width: min(320px, 80vw); }
+        .menu-btn { padding: 1rem 2rem; font-size: 1.15rem; font-weight: 800; color: #fff; cursor: pointer; background: linear-gradient(135deg, #7c3aed, #4c1d95); border: 2px solid #a78bfa; border-radius: 12px; box-shadow: 0 0 20px rgba(168, 85, 247, 0.4); transition: transform 0.15s, box-shadow 0.15s; letter-spacing: 0.05em; }
+        .menu-btn small { font-weight: 400; opacity: 0.75; letter-spacing: 0.15em; }
+        .menu-btn:hover { transform: scale(1.05); box-shadow: 0 0 35px rgba(168, 85, 247, 0.7); }
+        .menu-btn.online { background: linear-gradient(135deg, #0891b2, #164e63); border-color: #22d3ee; box-shadow: 0 0 20px rgba(34, 211, 238, 0.35); }
+        
+        /* اللوبي */
+        #lobby-screen { display: flex; align-items: center; justify-content: center; z-index: 60; background: radial-gradient(circle at 50% 30%, #0e2a3a 0%, #05030c 70%); }
+        .lobby-panel { position: relative; width: min(460px, 92vw); padding: 1.8rem; border-radius: 16px; background: rgba(10, 15, 30, 0.9); border: 1px solid rgba(34, 211, 238, 0.4); }
+        .lobby-panel h2 { text-align: center; margin-bottom: 1.2rem; letter-spacing: 0.15em; font-size: 1.2rem; color: #67e8f9; }
+        .lobby-row { display: flex; gap: 0.6rem; margin-bottom: 0.8rem; }
+        .lobby-panel input { flex: 1; padding: 0.7rem 1rem; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.2); background: rgba(255, 255, 255, 0.06); color: #fff; font-size: 1rem; outline: none; text-transform: uppercase; }
+        .status-line { text-align: center; font-size: 0.85rem; opacity: 0.65; margin-top: 0.5rem; }
+        .mini-btn { padding: 0.55rem 1rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.3); background: rgba(255, 255, 255, 0.08); color: #fff; cursor: pointer; font-size: 0.85rem; }
+        .mini-btn:hover { background: rgba(255, 255, 255, 0.18); }
+        .mini-btn.back { position: absolute; top: 1rem; left: 1rem; }
+        .room-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; font-size: 1.1rem; }
+        .room-header b { color: #fbbf24; letter-spacing: 0.3em; }
+        .player-slot { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 1rem; margin-bottom: 0.5rem; border-radius: 10px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .player-slot .ready-tag { font-size: 0.8rem; padding: 0.2rem 0.7rem; border-radius: 20px; background: #374151; }
+        .player-slot .ready-tag.on { background: #059669; }
+        
+        /* اللعبة */
+        #game-screen { background: #000; }
+        #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+        #hud { position: absolute; top: 0; left: 0; right: 0; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; pointer-events: none; z-index: 10; }
+        .hp-block { flex: 1; max-width: 44vw; }
+        .hp-block.right { text-align: right; }
+        .hp-name { font-weight: 800; font-size: 0.9rem; letter-spacing: 0.15em; text-shadow: 0 0 8px #000; margin-bottom: 4px; }
+        .hp-bar { position: relative; height: 22px; background: rgba(0, 0, 0, 0.6); border: 2px solid rgba(255, 255, 255, 0.85); border-radius: 6px; overflow: hidden; }
+        .hp-block.right .hp-bar { transform: scaleX(-1); }
+        .hp-fill { position: absolute; inset: 0; width: 100%; transition: width 0.12s linear; }
+        .hp-fill.player { background: linear-gradient(180deg, #4ade80, #16a34a); }
+        .hp-fill.enemy { background: linear-gradient(180deg, #f87171, #dc2626); }
+        .hp-ghost { position: absolute; inset: 0; width: 100%; background: rgba(255, 255, 255, 0.55); transition: width 0.8s ease 0.25s; }
+        #timer { font-size: 2rem; font-weight: 900; min-width: 64px; text-align: center; text-shadow: 0 0 12px #fbbf24; font-style: italic; }
+        
+        /* المهارات والجويستيك */
+        #joystick-zone { position: absolute; left: 0; bottom: 0; width: 45%; height: 55%; z-index: 12; }
+        #joystick-base { position: absolute; left: 60px; bottom: 70px; width: 130px; height: 130px; border-radius: 50%; background: rgba(255, 255, 255, 0.07); border: 2px solid rgba(255, 255, 255, 0.35); display: none; }
+        #joystick-base.active { display: block; }
+        #joystick-knob { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; border-radius: 50%; background: rgba(168, 85, 247, 0.55); border: 2px solid #c4b5fd; transform: translate(-50%, -50%); }
+        #action-buttons { position: absolute; right: 18px; bottom: 40px; display: grid; grid-template-columns: repeat(2, 64px); gap: 12px; z-index: 12; }
+        .abtn { width: 64px; height: 64px; border-radius: 50%; font-size: 1.6rem; cursor: pointer; color: #fff; border: 2px solid rgba(255, 255, 255, 0.5); background: rgba(0, 0, 0, 0.5); transition: transform 0.08s; }
+        .abtn:active { transform: scale(0.88); }
+        .abtn.atk { background: rgba(124, 58, 237, 0.55); }
+        .abtn.s1 { background: rgba(220, 38, 38, 0.55); }
+        .abtn.s2 { background: rgba(14, 116, 144, 0.6); }
+        .abtn.s3 { background: rgba(217, 119, 6, 0.6); }
+        .abtn.on-cooldown { opacity: 0.45; filter: grayscale(0.6); }
+        
+        #ko-overlay { position: absolute; inset: 0; z-index: 30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px); }
+        #ko-text { font-size: clamp(4rem, 14vw, 8rem); font-weight: 900; font-style: italic; color: #fbbf24; text-shadow: 0 0 40px #ef4444; }
+        #ko-sub { font-size: 1.2rem; letter-spacing: 0.2em; opacity: 0.9; }
+        #countdown { position: absolute; inset: 0; z-index: 25; display: flex; align-items: center; justify-content: center; font-size: clamp(5rem, 18vw, 9rem); font-weight: 900; font-style: italic; color: #fff; text-shadow: 0 0 40px #a855f7; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <!-- القائمة الرئيسية -->
+    <div id="main-menu" class="screen">
+        <div class="menu-bg"></div>
+        <h1 class="game-title">CURSED <span>CLASH</span></h1>
+        <p class="subtitle">呪術廻戦 INSPIRED 3D ARENA FIGHTER</p>
+        <div class="menu-buttons">
+            <button class="menu-btn" onclick="startGame()">🗡️ OFFLINE MODE<small>PLAY VS AI</small></button>
+            <button class="menu-btn online" onclick="document.getElementById('main-menu').classList.add('hidden'); document.getElementById('lobby-screen').classList.remove('hidden');">🌐 ONLINE MODE<small>MULTIPLAYER LOBBY</small></button>
+        </div>
+    </div>
+
+    <!-- اللوبي (محاكاة) -->
+    <div id="lobby-screen" class="screen hidden">
+        <div class="lobby-panel">
+            <button class="mini-btn back" onclick="document.getElementById('lobby-screen').classList.add('hidden'); document.getElementById('main-menu').classList.remove('hidden');">← Back</button>
+            <h2>🌐 MULTIPLAYER LOBBY</h2>
+            <div class="lobby-row"><input type="text" placeholder="Sorcerer" id="player-name"></div>
+            <div class="lobby-row"><button class="menu-btn small" onclick="createRoom()">CREATE ROOM</button></div>
+            <div class="lobby-row"><input type="text" placeholder="ROOM CODE" id="room-code"><button class="menu-btn small" onclick="joinRoom()">JOIN</button></div>
+            <p class="status-line" id="lobby-status">Connecting...</p>
+            <div id="room-view" class="hidden">
+                <div class="room-header">ROOM <b id="room-code-display">------</b> <button class="mini-btn" onclick="leaveRoom()">Leave</button></div>
+                <div id="player-list"></div>
+                <div class="lobby-row"><button class="menu-btn small" id="btn-ready" onclick="toggleReady()">READY</button><button class="menu-btn small gold" id="btn-start-online" onclick="startOnlineGame()">START BATTLE</button></div>
+                <p class="status-line" id="room-status">Waiting for players...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة اللعب -->
+    <div id="game-screen" class="screen hidden">
+        <canvas id="game-canvas"></canvas>
+        <div id="hud">
+            <div class="hp-block">
+                <div class="hp-name">YOU</div>
+                <div class="hp-bar"><div class="hp-fill player" id="hp1"></div><div class="hp-ghost" id="ghost1"></div></div>
+            </div>
+            <div id="timer">99</div>
+            <div class="hp-block right">
+                <div class="hp-name">RIVAL</div>
+                <div class="hp-bar"><div class="hp-fill enemy" id="hp2"></div><div class="hp-ghost" id="ghost2"></div></div>
+            </div>
+        </div>
+        <div id="joystick-zone"><div id="joystick-base"><div id="joystick-knob"></div></div></div>
+        <div id="action-buttons">
+            <button class="abtn atk" data-action="punch" onclick="doAction('punch')">👊</button>
+            <button class="abtn s1" data-action="s1" onclick="doAction('s1')">🔥</button>
+            <button class="abtn s2" data-action="s2" onclick="doAction('s2')">❄️</button>
+            <button class="abtn s3" data-action="s3" onclick="doAction('s3')">💥</button>
+        </div>
+        <div id="ko-overlay" class="hidden">
+            <div id="ko-text">K.O.</div>
+            <div id="ko-sub">YOU WERE EXORCISED</div>
+            <button class="menu-btn small" onclick="location.reload()">REMATCH</button>
+        </div>
+        <div id="countdown" class="hidden">3</div>
+    </div>
+
+    <script>
+        // ==========================================
+        // محرك اللعبة 3D (Three.js)
+        // ==========================================
+        let scene, camera, renderer, clock;
+        let player, enemy, particles = [];
+        let isPlaying = false, timer = 99, timerInterval;
+        const ARENA_R = 16;
+        const keys = {};
+        const joy = { active: false, id: null, x: 0, y: 0 };
+        const COOLDOWNS = { punch: 1.5, s1: 5, s2: 10, s3: 15 };
+
+        function init3D() {
+            const canvas = document.getElementById('game-canvas');
+            renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x14092b);
+            scene.fog = new THREE.Fog(0x14092b, 30, 100);
+            camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300);
+            camera.position.set(0, 9.5, 13);
+            clock = new THREE.Clock();
+
+            // إضاءة
+            scene.add(new THREE.AmbientLight(0x8877aa, 1));
+            const light = new THREE.DirectionalLight(0xffffff, 1.5);
+            light.position.set(10, 25, 10);
+            scene.add(light);
+
+            // الساحة
+            const floor = new THREE.Mesh(new THREE.CircleGeometry(ARENA_R, 48), new THREE.MeshStandardMaterial({ color: 0x2a2140 }));
+            floor.rotation.x = -Math.PI / 2;
+            scene.add(floor);
+            
+            const ring = new THREE.Mesh(new THREE.RingGeometry(9.5, 10, 64), new THREE.MeshBasicMaterial({ color: 0x7c3aed, side: THREE.DoubleSide }));
+            ring.rotation.x = -Math.PI / 2;
+            ring.position.y = 0.02;
+            scene.add(ring);
+
+            // اللاعب والعدو
+            player = makeFighter(0x1e1b4b, 0xa855f7);
+            player.pos.set(-5, 0, 3);
+            enemy = makeFighter(0x4c0519, 0xf43f5e);
+            enemy.pos.set(5, 0, -3);
+            scene.add(player.group, enemy.group);
+
+            window.addEventListener('resize', onResize);
+            setupControls();
+        }
+
+        function makeFighter(color, accent) {
+            const group = new THREE.Group();
+            const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.55, 1.0, 6, 14), new THREE.MeshStandardMaterial({ color }));
+            body.position.y = 1.15;
+            group.add(body);
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.42, 18, 14), new THREE.MeshStandardMaterial({ color: 0xffd9b3 }));
+            head.position.y = 2.25;
+            group.add(head);
+            const aura = new THREE.Mesh(new THREE.RingGeometry(0.8, 1.25, 32), new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.55, side: THREE.DoubleSide }));
+            aura.rotation.x = -Math.PI / 2;
+            aura.position.y = 0.05;
+            group.add(aura);
+            
+            return {
+                group, aura,
+                pos: new THREE.Vector3(),
+                vel: new THREE.Vector3(),
+                hp: 100, maxHp: 100,
+                cooldowns: { punch: 0, s1: 0, s2: 0, s3: 0 },
+                facing: 0
+            };
+        }
+
+        function setupControls() {
+            window.addEventListener('keydown', e => { keys[e.code] = true; });
+            window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+            const zone = document.getElementById('joystick-zone');
+            const base = document.getElementById('joystick-base');
+            const knob = document.getElementById('joystick-knob');
+            let center = null;
+
+            zone.addEventListener('touchstart', e => {
+                e.preventDefault(); joy.active = true;
+                const t = e.changedTouches[0];
+                center = { x: t.clientX, y: t.clientY };
+                base.style.left = t.clientX - 65 + 'px'; base.style.top = t.clientY - 65 + 'px'; base.style.bottom = 'auto';
+                base.classList.add('active');
+            }, { passive: false });
+
+            zone.addEventListener('touchmove', e => {
+                if(!joy.active) return;
+                e.preventDefault();
+                const t = e.changedTouches[0];
+                let dx = t.clientX - center.x, dy = t.clientY - center.y;
+                const len = Math.hypot(dx, dy), max = 55;
+                if(len > max) { dx = (dx/len)*max; dy = (dy/len)*max; }
+                joy.x = dx/max; joy.y = dy/max;
+                knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            }, { passive: false });
+
+            zone.addEventListener('touchend', e => {
+                joy.active = false; joy.x = joy.y = 0;
+                base.classList.remove('active');
+                knob.style.transform = 'translate(-50%,-50%)';
+            });
+        }
+
+        function doAction(action) {
+            if (!isPlaying) return;
+            if (player.cooldowns[action] > 0) return;
+            player.cooldowns[action] = COOLDOWNS[action];
+            
+            // تأثير بصري
+            const fwd = new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing));
+            for(let i=0; i<10; i++) {
+                const p = new THREE.Mesh(new THREE.SphereGeometry(0.2, 4, 4), new THREE.MeshBasicMaterial({ color: 0xa855f7 }));
+                p.position.copy(player.pos).add(new THREE.Vector3(0, 1.5, 0));
+                scene.add(p);
+                particles.push({ mesh: p, vel: fwd.clone().multiplyScalar(5).add(new THREE.Vector3(Math.random()-0.5, Math.random(), Math.random()-0.5)), life: 0.5 });
+            }
+
+            // إصابة العدو
+            const dist = player.pos.distanceTo(enemy.pos);
+            if (action === 'punch' && dist < 3) dealDamage(enemy, 8);
+            if (action === 's1' && dist < 8) dealDamage(enemy, 12);
+            if (action === 's2' && dist < 6) dealDamage(enemy, 18);
+            if (action === 's3' && dist < 12) dealDamage(enemy, 30);
+        }
+
+        function dealDamage(target, amount) {
+            target.hp = Math.max(0, target.hp - amount);
+            updateHPBars();
+            if (target.hp <= 0) endGame();
+        }
+
+        function updateHPBars() {
+            document.getElementById('hp1').style.width = (player.hp / player.maxHp * 100) + '%';
+            document.getElementById('hp2').style.width = (enemy.hp / enemy.maxHp * 100) + '%';
+        }
+
+        function updateAI(dt) {
+            if (!isPlaying) return;
+            const dist = enemy.pos.distanceTo(player.pos);
+            const dir = player.pos.clone().sub(enemy.pos).setY(0).normalize();
+            
+            if (dist > 3) enemy.pos.add(dir.multiplyScalar(2.5 * dt));
+            else if (enemy.cooldowns.punch <= 0) {
+                enemy.cooldowns.punch = COOLDOWNS.punch;
+                dealDamage(player, 5);
+            }
+        }
+
+        function updateFighter(f, dt) {
+            for (let k in f.cooldowns) f.cooldowns[k] = Math.max(0, f.cooldowns[k] - dt);
+            f.pos.add(f.vel.clone().multiplyScalar(dt));
+            f.vel.multiplyScalar(0.8);
+            if (f.pos.length() > ARENA_R - 1) f.pos.setLength(ARENA_R - 1);
+            f.group.position.copy(f.pos);
+            f.group.rotation.y = f.facing;
+        }
+
+        let lastTime = 0;
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = Math.min(clock.getDelta(), 0.05);
+            
+            if (isPlaying) {
+                // حركة اللاعب
+                const mv = new THREE.Vector3(
+                    (keys['KeyD']?1:0) - (keys['KeyA']?1:0) + joy.x,
+                    0, (keys['KeyS']?1:0) - (keys['KeyW']?1:0) + joy.y
+                );
+                if (mv.lengthSq() > 1) mv.normalize();
+                player.vel.copy(mv.multiplyScalar(6.5));
+                if (mv.lengthSq() > 0.1) player.facing = Math.atan2(mv.x, mv.z);
+                else {
+                    const d = enemy.pos.clone().sub(player.pos);
+                    player.facing = Math.atan2(d.x, d.z);
+                }
+
+                updateFighter(player, dt);
+                updateAI(dt);
+                updateFighter(enemy, dt);
+                
+                // الكاميرا
+                camera.position.lerp(new THREE.Vector3(player.pos.x * 0.6, 9.5, player.pos.z * 0.6 + 13), 0.1);
+                camera.lookAt(player.pos.x * 0.6, 1.5, player.pos.z * 0.6);
+
+                // الكول داون UI
+                document.querySelectorAll('.abtn').forEach(b => {
+                    const act = b.dataset.action;
+                    b.classList.toggle('on-cooldown', player.cooldowns[act] > 0);
+                });
+            }
+
+            // تحديث الجزيئات
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.mesh.position.add(p.vel.clone().multiplyScalar(dt));
+                p.life -= dt;
+                p.mesh.material.opacity = p.life;
+                if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i, 1); }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        function onResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // ==========================================
+        // إدارة الشاشات
+        // ==========================================
+        function startGame() {
+            document.getElementById('main-menu').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+            if(!renderer) init3D();
+            animate();
+            
+            // عد تنازلي
+            const cd = document.getElementById('countdown');
+            cd.classList.remove('hidden');
+            let n = 3;
+            const int = setInterval(() => {
+                n--; cd.textContent = n > 0 ? n : "FIGHT!";
+                if (n < 0) {
+                    clearInterval(int); cd.classList.add('hidden');
+                    isPlaying = true;
+                    timerInterval = setInterval(() => {
+                        if(!isPlaying) return;
+                        timer--; document.getElementById('timer').textContent = timer;
+                        if (timer <= 0) endGame();
+                    }, 1000);
+                }
+            }, 800);
+        }
+
+        function endGame() {
+            isPlaying = false;
+            clearInterval(timerInterval);
+            document.getElementById('ko-overlay').classList.remove('hidden');
+        }
+
+        // ==========================================
+        // محاكاة اللوبي (Mock)
+        // ==========================================
+        let isHost = false;
+        let mockPlayers = [];
+        
+        function createRoom() {
+            const name = document.getElementById('player-name').value || "You";
+            const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+            document.getElementById('room-code-display').textContent = code;
+            document.getElementById('room-view').classList.remove('hidden');
+            isHost = true;
+            mockPlayers = [{ name, ready: false, isYou: true }];
+            renderPlayers();
+            document.getElementById('lobby-status').textContent = "🧪 Mock backend active";
+            
+            setTimeout(() => {
+                mockPlayers.push({ name: "GojoFan99", ready: false });
+                renderPlayers();
+                document.getElementById('room-status').textContent = "GojoFan99 joined";
+            }, 2000);
+        }
+
+        function joinRoom() {
+            document.getElementById('lobby-status').textContent = "Room not found (Mock Mode)";
+        }
+
+        function leaveRoom() {
+            document.getElementById('room-view').classList.add('hidden');
+            mockPlayers = [];
+        }
+
+        function toggleReady() {
+            mockPlayers[0].ready = !mockPlayers[0].ready;
+            renderPlayers();
+            if(mockPlayers[0].ready && mockPlayers.length > 1) {
+                mockPlayers[1].ready = true;
+                renderPlayers();
+                document.getElementById('btn-start-online').classList.remove('hidden');
+            }
+        }
+
+        function startOnlineGame() {
+            startGame();
+        }
+
+        function renderPlayers() {
+            const list = document.getElementById('player-list');
+            list.innerHTML = mockPlayers.map((p, i) => `
+                <div class="player-slot">
+                    <span>${p.name} ${i===0 ? '👑' : ''}</span>
+                    <span class="ready-tag ${p.ready ? 'on' : ''}">${p.ready ? 'READY' : 'NOT READY'}</span>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+                                                                                                                             </html>
